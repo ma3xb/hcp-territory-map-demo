@@ -10,8 +10,8 @@
   var BASE_COLORS = { '101': '#2563b0', '102': '#0f9d8f', '103': '#7c5cc4', '104': '#e0912f', '105': '#c2467a', '106': '#3d9a5b', '107': '#5a6c87' };
   var NEUTRAL = '#2f6db5', GREY = '#8896a6';
 
-  var state = { sc: 'base', main: true, terr: true, moved: false, hidden: {}, area: '' };
-  var fx = { dim: 0, area: 1 };   // animated visual parameters
+  var state = { sc: 'base', main: true, terr: true, hidden: {}, area: '' };
+  var fx = { area: 1 };   // animated visual parameters
 
   var $ = function (id) { return document.getElementById(id); };
   var raf = window.requestAnimationFrame.bind(window);
@@ -99,11 +99,8 @@
   var mainG = L.featureGroup().addTo(map);
 
   // ---- dot styles (driven by h._c, the current animated colour, and fx) ----------------
-  function dimOf(h) { return isS1() && !isMoved(h) ? fx.dim : 0; }
   function mainStyle(h) {
-    var mv = isS1() && isMoved(h), d = dimOf(h);
-    return { radius: mv ? 5 + fx.dim * 2.5 : 5, color: mv && fx.dim > 0 ? '#0f2233' : '#fff', weight: mv ? 1.2 + fx.dim * 1.2 : 1.2,
-             fillColor: rgb(h._c), fillOpacity: .95 * (1 - .78 * d), opacity: 1 - .75 * d };
+    return { radius: 5, color: '#fff', weight: 1.2, fillColor: rgb(h._c), fillOpacity: .95 };
   }
 
   function targetColor(h) {
@@ -177,10 +174,7 @@
         var acc = 0;
         bg = 'conic-gradient(' + order.map(function (c) { var a = acc / n * 100; acc += cnt[c]; return c + ' ' + a.toFixed(1) + '% ' + (acc / n * 100).toFixed(1) + '%'; }).join(',') + ')';
       }
-      var mv = isS1() && g.vis.some(isMoved), dim = isS1() && !mv ? fx.dim : 0;
       d.style.background = bg;
-      d.style.opacity = 1 - .75 * dim;
-      d.style.borderColor = mv && fx.dim > 0 ? '#0f2233' : '#fff';
       d.textContent = open ? '\u00d7' : n;
       d.classList.toggle('open', !!open);
     });
@@ -390,10 +384,6 @@
     });
   }
 
-  function setMoved(on) {
-    state.moved = on;
-    tween('dim', 650, function (k) { fx.dim = on ? k : 1 - k; restyleAll(); });
-  }
 
   bindRow($('row-main'), function () { return state.main; }, function (v) {
     state.main = v; refresh();
@@ -403,7 +393,6 @@
     Object.keys(areaLayers).forEach(function (k) { areaLayers[k].setStyle(areaStyle(k.replace('@s1', ''))); });
     renderTerrList(false);
   });
-  bindRow($('row-moved'), function () { return state.moved; }, setMoved);
 
   // ---- UI: area tiles ---------------------------------------------------------------------------------------
   function renderAreaTiles() {
@@ -512,8 +501,6 @@
     state.sc = id; state.hidden = {};
     var seg = $('scenario'); seg.style.setProperty('--i', id === 's1' ? 1 : 0);
     Array.prototype.forEach.call(seg.querySelectorAll('button'), function (b) { b.setAttribute('aria-checked', b.getAttribute('data-v') === id); });
-    $('row-moved-reveal').classList.toggle('open', id === 's1');
-    if (id !== 's1' && state.moved) { state.moved = false; setSwitch($('row-moved').querySelector('.switch'), false); tween('dim', 400, function (k) { fx.dim = 1 - k; restyleAll(); }); }
     renderKpis(); renderTerrList(true); refresh(); recolor(!instant);
     if (state.area) showArea(state.area);
     if (id === 's1' && !instant) openModal();
