@@ -230,7 +230,7 @@
     }, done);
   }
   map.on('click zoomstart', function () { collapseSpider(true); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') collapseSpider(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { collapseSpider(); closeModal(); } });
 
   // ---- area layers -----------------------------------------------------------------------------
   var LEVELS = [
@@ -488,9 +488,23 @@
     countTo($('k-terr'), info.length, 0); countTo($('k-dev'), dev, 1);
     if (isS1()) {
       var n = HCPS.filter(isMoved).length;
-      $('moved-n').textContent = fmt(n); $('moved-p').textContent = fmt(n / HCPS.length * 100, 1) + '%';
+      mmN = n; $('mm-p').textContent = fmt(n / HCPS.length * 100, 1) + '%';
     }
   }
+
+  // ---- scenario info modal --------------------------------------------------------------------------------------------
+  var mmN = 0, modalFrom = null;
+  function openModal() {
+    var m = $('modal'); $('mm-n')._v = 0; m.classList.remove('closing'); m.hidden = false;
+    modalFrom = document.activeElement; $('modal-ok').focus();
+    setTimeout(function () { countTo($('mm-n'), mmN, 0, 1100); }, 250);
+  }
+  function closeModal() {
+    var m = $('modal'); if (m.hidden || m.classList.contains('closing')) return;
+    m.classList.add('closing');
+    setTimeout(function () { m.hidden = true; m.classList.remove('closing'); if (modalFrom && modalFrom.focus) modalFrom.focus(); }, 260);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#modal [data-close]'), function (el) { el.addEventListener('click', closeModal); });
 
   // ---- scenario switch ----------------------------------------------------------------------------------------------
   function applyScenario(id, instant) {
@@ -498,11 +512,11 @@
     state.sc = id; state.hidden = {};
     var seg = $('scenario'); seg.style.setProperty('--i', id === 's1' ? 1 : 0);
     Array.prototype.forEach.call(seg.querySelectorAll('button'), function (b) { b.setAttribute('aria-checked', b.getAttribute('data-v') === id); });
-    $('moved-reveal').classList.toggle('open', id === 's1');
     $('row-moved-reveal').classList.toggle('open', id === 's1');
     if (id !== 's1' && state.moved) { state.moved = false; setSwitch($('row-moved').querySelector('.switch'), false); tween('dim', 400, function (k) { fx.dim = 1 - k; restyleAll(); }); }
     renderKpis(); renderTerrList(true); refresh(); recolor(!instant);
     if (state.area) showArea(state.area);
+    if (id === 's1' && !instant) openModal();
   }
   Array.prototype.forEach.call($('scenario').querySelectorAll('button'), function (b) {
     b.addEventListener('click', function () { applyScenario(b.getAttribute('data-v')); });

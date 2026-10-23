@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="locked">
 <div id="map" role="application" aria-label="Territory map"></div>
 
 <aside id="dock" class="glass" aria-label="Map controls">
@@ -39,13 +39,6 @@
       <div class="kpi"><span class="kpi-l">Max deviation</span><b id="k-dev">0</b></div>
     </div>
 
-    <div class="reveal" id="moved-reveal"><div>
-      <div class="note-card">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h10m-4-4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span><b id="moved-n">0</b> HCPs (<span id="moved-p">0</span>) change territory in this scenario. Colour follows the territory they evolve from.</span>
-      </div>
-    </div></div>
-
     <section class="card">
       <h2>HCP locations</h2>
       <div class="row-sw" id="row-main"><div class="lbl"><b>Show HCPs</b><small id="show-hint">One dot per HCP and territory</small></div><button type="button" class="switch" role="switch" aria-checked="true" aria-label="Show HCPs"><i></i></button></div>
@@ -69,17 +62,40 @@
       <p class="legend-note" id="legend-note"></p>
     </section>
 
+    <button type="button" id="signout" class="link-btn">Sign out</button>
     <p class="attrib">Boundaries derived from PLZ polygons &copy; OpenStreetMap contributors, ODbL (suche-postleitzahl.org).</p>
   </div>
 </aside>
+
+<div id="login" class="login" role="dialog" aria-modal="true" aria-labelledby="login-title">
+  <form id="login-form" id="login-card" class="login-card glass" autocomplete="on" novalidate>
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><defs><linearGradient id="lg-login" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b6bcb"/><stop offset="1" stop-color="#0fa3a0"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#lg-login)"/><path d="M9 21l4-9 4 6 3-4 3 7" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13" cy="12" r="1.8" fill="#fff"/></svg>
+    </div>
+    <h1 id="login-title">Sign in</h1>
+    <p class="login-sub">HCP Territory Map</p>
+    <label class="field"><span>User</span><input id="login-user" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" required></label>
+    <label class="field"><span>Password</span><input id="login-pass" name="password" type="password" autocomplete="current-password" required></label>
+    <p class="login-err" id="login-err" role="alert" hidden>Wrong user or password.</p>
+    <button type="submit" class="btn-primary">Sign in</button>
+  </form>
+</div>
+
+<div id="modal" class="modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card glass" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <button type="button" class="icon-btn modal-x" data-close aria-label="Close"><svg viewBox="0 0 20 20"><path d="M5 5l10 10M15 5L5 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+    <span class="modal-badge">Scenario 1</span>
+    <h2 id="modal-title"><b id="mm-n">0</b> HCPs (<span id="mm-p">0%</span>) change territory in this scenario.</h2>
+    <p>Colour follows the territory they evolve from.</p>
+    <button type="button" class="btn-primary" id="modal-ok" data-close>View the map</button>
+  </div>
+</div>
 
 <div id="toast" class="glass" role="status" hidden></div>
 
 <script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="data/hcps.js"></script>
-<script src="data/call-potential.js"></script>
-<script src="data/scenario-1.js"></script>
-<script src="app.js"></script>
+<script src="auth.js"></script>
 </body>
 </html>
