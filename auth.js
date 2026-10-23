@@ -53,7 +53,7 @@
       return p.then(function () {
         return new Promise(function (ok, fail) {
           var s = document.createElement('script');
-          s.src = src; s.async = false; s.onload = ok; s.onerror = function () { fail(new Error('Could not load ' + src)); };
+          s.src = src + '?v=202610230938'; s.async = false; s.onload = ok; s.onerror = function () { fail(new Error('Could not load ' + src)); };
           document.head.appendChild(s);
         });
       });
