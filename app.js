@@ -3,8 +3,7 @@
 
   var HCPS = window.HCPS || [];
   var CALLS = window.CALLS || { brick: {}, territory: {} };
-  var SC = (window.SCENARIOS || {})['scenario-1'];
-  var CFG = window.XEL_CONFIG || {};
+  var SCS = { s1: (window.SCENARIOS || {})['scenario-1'], s2: (window.SCENARIOS || {})['scenario-2'] };   // scenario data by switch id
 
   // muted, corporate palette; scenario territories keep the colour of the baseline territory they evolve from
   var BASE_COLORS = { '101': '#2563b0', '102': '#0f9d8f', '103': '#7c5cc4', '104': '#e0912f', '105': '#c2467a', '106': '#3d9a5b', '107': '#5a6c87' };
@@ -42,8 +41,9 @@
   }
   function countTo(el, to, dec, ms) {
     var from = el._v == null ? 0 : el._v; el._v = to;
-    var t0 = performance.now(); ms = ms || 900;
+    var t0 = performance.now(), tok = el._tok = {}; ms = ms || 900;
     (function f(t) {
+      if (el._tok !== tok) return;
       var k = Math.min(1, (t - t0) / ms), v = from + (to - from) * easeOut(k);
       el.textContent = fmt(v, dec);
       if (k < 1) raf(f);
@@ -52,8 +52,10 @@
 
   // ---- scenario helpers ----------------------------------------------------------
   var isS1 = function () { return state.sc === 's1'; };
+  var isS2 = function () { return state.sc === 's2'; };   // geographic figures only: no HCPs
+  var SC = null;                                          // data of the selected scenario (null for the baseline)
   function fromOf(code) {
-    if (!isS1()) return code;
+    if (!SC) return code;
     var t = SC.territories.filter(function (x) { return x.id === code; })[0];
     return t ? t.from : null;
   }
@@ -65,14 +67,16 @@
   HCPS.forEach(function (h) { if (!kamByCode[h.t]) kamByCode[h.t] = h.kam; });
 
   function terrInfo() {
-    var list;
-    if (isS1()) {
-      list = SC.territories.map(function (t) { var c = SC.calls.territory[t.id] || {}; return { code: t.id, from: t.from, name: 'from ' + t.from, c: c }; });
+    var list;      // v: the figure the bars and the deviation are based on (calls per month, or H2 planned visits in scenario 2)
+    if (isS2()) {
+      list = SC.territories.map(function (t) { return { code: t.id, from: t.from, name: fmt(t.n_bricks) + ' bricks', c: t, v: t.h2 }; });
+    } else if (isS1()) {
+      list = SC.territories.map(function (t) { var c = SC.calls.territory[t.id] || {}; return { code: t.id, from: t.from, name: 'from ' + t.from, c: c, v: c.calls_per_month }; });
     } else {
-      list = Object.keys(CALLS.territory).sort().map(function (k) { return { code: k, from: k, name: kamByCode[k] || '', c: CALLS.territory[k] }; });
+      list = Object.keys(CALLS.territory).sort().map(function (k) { return { code: k, from: k, name: kamByCode[k] || '', c: CALLS.territory[k], v: CALLS.territory[k].calls_per_month }; });
     }
-    var avg = list.reduce(function (s, t) { return s + t.c.calls_per_month; }, 0) / list.length;
-    list.forEach(function (t) { t.dev = (t.c.calls_per_month - avg) / avg; });
+    var avg = list.reduce(function (s, t) { return s + t.v; }, 0) / list.length;
+    list.forEach(function (t) { t.dev = (t.v - avg) / avg; });
     list.avg = avg;
     return list;
   }
@@ -80,21 +84,10 @@
   // ---- map -------------------------------------------------------------------------
   var map = L.map('map', { zoomControl: false, maxBoundsViscosity: 1, preferCanvas: true, zoomSnap: .25, zoomDelta: .5, wheelPxPerZoomLevel: 90 }).setView([51.2, 10.4], 6);
   L.control.zoom({ position: 'topright' }).addTo(map);
-  if (CFG.jawgAccessToken) {
-    L.tileLayer('https://{s}.tile.jawg.io/jawg-sunny/{z}/{x}/{y}{r}.png?access-token={accessToken}', {
-      subdomains: 'abcd', maxZoom: 22, accessToken: CFG.jawgAccessToken,
-      attribution: '<a href="https://jawg.io" title="Tiles Courtesy of Jawg Maps" target="_blank" rel="noopener">&copy; <b>Jawg</b>Maps</a> | <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">&copy; OpenStreetMap contributors</a>'
-    }).addTo(map);
-  } else {
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
-    var toast = $('toast');
-    toast.hidden = false;
-    toast.innerHTML = 'Showing the OpenStreetMap fallback basemap. Add your Jawg access token to <b>config.js</b> to switch to Jawg.Sunny.';
-    setTimeout(function () { toast.style.transition = 'opacity .6s'; toast.style.opacity = 0; setTimeout(function () { toast.hidden = true; }, 700); }, 9000);
-  }
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
 
   var mainG = L.featureGroup().addTo(map);
 
@@ -227,25 +220,30 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { collapseSpider(); closeModal(); } });
 
   // ---- area layers -----------------------------------------------------------------------------
-  var LEVELS = [
+  var LEVEL_DEFS = [
     { id: '', label: 'None', icon: '<circle cx="12" cy="12" r="8"/><path d="M6.5 17.5l11-11"/>' },
     { id: 'plz', label: 'ZIP codes', weight: .6, icon: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>' },
     { id: 'grossegment_x_territory', label: 'Bricks by territory', weight: 1.3, icon: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 14l16-6M12 4v16"/>' },
+    { id: 'brick', label: 'Bricks', weight: .8, icon: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 14l16-6M12 4v16"/>' },
     { id: 'territory', label: 'Territories', weight: 2.2, icon: '<path d="M12 3c4 0 7 3 7 7 0 5-7 11-7 11S5 15 5 10c0-4 3-7 7-7z"/><circle cx="12" cy="10" r="2.5"/>' }
   ];
-  var levelById = {}; LEVELS.forEach(function (l) { levelById[l.id] = l; });
+  var levelById = {}; LEVEL_DEFS.forEach(function (l) { levelById[l.id] = l; });
+  var LEVELS = [];   // the tiles offered in the current scenario: scenario 2 has its own bricks instead of the bricks by territory
+  function setLevels() {
+    LEVELS = LEVEL_DEFS.filter(function (l) { return l.id === 'brick' ? isS2() : l.id === 'grossegment_x_territory' ? !isS2() : true; });
+  }
   var areaLayers = {}, loading = {}, activeKey = null;
 
-  var layerKey = function (level) { return level === 'territory' && isS1() ? 'territory@s1' : level; };
+  var layerKey = function (level) { return level === 'territory' && SC ? 'territory@' + state.sc : level; };
 
   // territory an area belongs to in the current scenario (null when it spans several)
   function terrOfArea(level, p) {
-    if (!isS1()) {
+    if (!SC) {
       if (level === 'territory') return p.id;
       if (p.territory) return p.territory;
       return p.territories && p.territories.indexOf(',') < 0 ? p.territories : null;
     }
-    var v = level === 'plz' ? SC.plz[p.plz] : level === 'grossegment_x_territory' ? SC.brick[p.id] : p.id;
+    var v = level === 'plz' ? SC.plz[p.plz] : level === 'grossegment_x_territory' ? SC.brick[p.id] : level === 'brick' ? p.territory : p.id;
     return v && v.indexOf(',') < 0 ? v : null;
   }
   function areaStyle(level) {
@@ -260,13 +258,33 @@
     var t = terrOfArea(level, p), n = function (v) { return fmt(Number(v) || 0); };
     var terrTxt = t ? 'Territory ' + esc(t) : '';
     switch (level) {
-      case 'plz': return esc(p.name || p.plz) + '<br><small>' + terrTxt + (p.gs_name ? ' · ' + esc(p.gs_name) : '') + '</small>';
+      case 'plz': return esc(p.name || p.plz) + '<br><small>' + terrTxt + (p.gs_name && !isS2() ? ' · ' + esc(p.gs_name) : '') + '</small>';
+      case 'brick': return esc(p.name) + '<br><small>' + terrTxt + ' · ID ' + esc(p.id) + '</small>';
       case 'territory': return esc('Territory ' + p.id) + '<br><small>' + n(p.n_plz) + ' PLZ</small>';
       default: return esc(p.name) + '<br><small>' + terrTxt + ' · ' + n(p.n_plz) + ' PLZ</small>';
     }
   }
 
+  // scenario 2: new frequency and H2 planned visits (a missing value in the workbook is shown as "-")
+  function visitsPopup(level, p) {
+    var isT = level === 'territory', t = isT ? SC.territories.filter(function (x) { return x.id === p.id; })[0] : p, head, chips, note;
+    var num = function (v, label) { return '<div><b' + (v == null ? '>-' : ' data-count="' + v + '">0') + '</b><small>' + label + '</small></div>'; };
+    if (isT) {
+      head = '<div class="pp-title">Territory ' + esc(p.id) + '</div><div class="pp-sub">' + fmt(t.n_bricks) + ' bricks</div>';
+      chips = chipT(p.id) + '<span class="chip">' + fmt(t.n_plz) + ' PLZ</span>';
+      note = 'Sums over the bricks that have a value: ' + fmt(t.n_freq) + ' of ' + fmt(t.n_bricks) + ' bricks have a new frequency, ' + fmt(t.n_h2) + ' have H2 planned visits.';
+    } else {
+      head = '<div class="pp-title">' + esc(p.name) + '</div><div class="pp-sub">Brick ID ' + esc(p.id) + '</div>';
+      chips = chipT(p.territory) + '<span class="chip">' + fmt(p.n_plz) + ' PLZ</span><span class="chip">' + fmt(p.km2, 1) + ' km²</span>';
+      note = p.freq == null || p.h2 == null ? 'A "-" means the workbook has no value for this brick.' : '';
+    }
+    return head + '<div class="pp-chips">' + chips + '</div>' +
+      '<div class="pp-grid two">' + num(t.freq, isT ? 'New frequency (sum)' : 'New frequency') + num(t.h2, isT ? 'H2 planned visits (sum)' : 'H2 planned visits') + '</div>' +
+      (note ? '<div class="pp-note">' + note + '</div>' : '');
+  }
+
   function callsPopup(level, p) {
+    if (level === 'brick' || (isS2() && level === 'territory')) return visitsPopup(level, p);
     var isT = level === 'territory', t = terrOfArea(level, p), info = terrInfo();
     var c, head, chips = '', note = '';
     if (isT) {
@@ -303,7 +321,7 @@
   }
 
   function buildArea(level, geojson) {
-    var clickable = level === 'grossegment_x_territory' || level === 'territory';
+    var clickable = level === 'grossegment_x_territory' || level === 'brick' || level === 'territory';
     return L.geoJSON(geojson, {
       style: areaStyle(level),
       onEachFeature: function (f, layer) {
@@ -323,7 +341,7 @@
     if (activeKey && areaLayers[activeKey]) map.removeLayer(areaLayers[activeKey]);
     state.area = level; activeKey = null; note.hidden = true;
     if (!level) return;
-    var key = layerKey(level), isOwn = key === 'territory@s1';
+    var key = layerKey(level), isOwn = key.indexOf('@') > 0;
     var ready = function () {
       if (state.area !== level || layerKey(level) !== key) return;
       var lay = areaLayers[key], big = lay.getLayers().length > 1500;
@@ -355,7 +373,7 @@
     groupList.forEach(function (g) { g.vis = []; });
     var shown = 0, noLoc = 0, spots = 0;
     HCPS.forEach(function (h) {
-      if (state.hidden[terrOfHcp(h)] || !state.main) return;
+      if (isS2() || state.hidden[terrOfHcp(h)] || !state.main) return;
       if (!h._m) { noLoc++; return; }
       shown++;
       if (h._g) h._g.vis.push(h); else { mainG.addLayer(h._m); spots++; }
@@ -370,7 +388,7 @@
     });
     restack(); paintGroups();
     var hint = $('show-hint');
-    if (hint) hint.textContent = state.main ? fmt(shown) + ' HCPs at ' + fmt(spots) + ' locations' + (noLoc ? ' \u00b7 ' + noLoc + ' without location' : '') : 'Hidden';
+    if (hint) hint.textContent = isS2() ? 'No HCP data in this scenario' : state.main ? fmt(shown) + ' HCPs at ' + fmt(spots) + ' locations' + (noLoc ? ' \u00b7 ' + noLoc + ' without location' : '') : 'Hidden';
   }
 
   // ---- UI: switches ----------------------------------------------------------------------------------------
@@ -390,7 +408,7 @@
   });
   bindRow($('row-terr'), function () { return state.terr; }, function (v) {
     state.terr = v; recolor(true);
-    Object.keys(areaLayers).forEach(function (k) { areaLayers[k].setStyle(areaStyle(k.replace('@s1', ''))); });
+    Object.keys(areaLayers).forEach(function (k) { areaLayers[k].setStyle(areaStyle(k.replace(/@.*/, ''))); });
     renderTerrList(false);
   });
 
@@ -436,8 +454,8 @@
   }
 
   function renderTerrList(animate) {
-    var info = terrInfo(), box = $('terr-list'), top = Math.max.apply(null, info.map(function (t) { return t.c.calls_per_month; })) * 1.12;
-    box.innerHTML = '<div class="thead"><span></span><span></span><span class="r">HCPs</span><span class="r">Calls / mo</span><span></span></div>';
+    var info = terrInfo(), box = $('terr-list'), top = Math.max.apply(null, info.map(function (t) { return t.v; })) * 1.12, s2 = isS2();
+    box.innerHTML = '<div class="thead"><span></span><span></span><span class="r">HCPs</span><span class="r">' + (s2 ? 'H2 visits' : 'Calls / mo') + '</span><span></span></div>';
     info.forEach(function (t, i) {
       var row = document.createElement('div'); row.className = 'trow' + (state.hidden[t.code] ? ' off' : ''); row.tabIndex = 0; row.style.animationDelay = (i * 50) + 'ms';
       var col = state.terr ? colorOf(t.code) : GREY;
@@ -445,35 +463,39 @@
       row.innerHTML = '<span class="tdot" style="background:' + col + '"></span>' +
         '<div><div class="ttitle"><b>' + esc(t.code) + '</b><span>' + esc(t.name) + '</span></div>' +
         '<div class="tbar"><i style="background:' + col + '"></i><u style="left:' + Math.min(100, info.avg / top * 100) + '%"></u></div></div>' +
-        '<div class="thcp">' + fmt(t.c.hcps) + '</div><div class="tnum"><b>' + fmt(t.c.calls_per_month, 1) + '</b><small>' + dev + '</small></div>' +
-        '<button type="button" class="switch sm" role="switch" aria-checked="' + !state.hidden[t.code] + '" aria-label="Show territory ' + esc(t.code) + '"><i></i></button>';
-      var bar = row.querySelector('.tbar i'), w = t.c.calls_per_month / top * 100;
+        '<div class="thcp">' + (s2 ? '-' : fmt(t.c.hcps)) + '</div><div class="tnum"><b>' + fmt(t.v, s2 ? 0 : 1) + '</b><small>' + dev + '</small></div>' +
+        (s2 ? '<span></span>' : '<button type="button" class="switch sm" role="switch" aria-checked="' + !state.hidden[t.code] + '" aria-label="Show territory ' + esc(t.code) + '"><i></i></button>');
+      var bar = row.querySelector('.tbar i'), w = t.v / top * 100;
       if (animate === false) bar.style.width = w + '%'; else raf(function () { raf(function () { bar.style.width = w + '%'; }); });
       var sw = row.querySelector('.switch');
-      sw.addEventListener('click', function (e) {
+      if (sw) sw.addEventListener('click', function (e) {
         e.stopPropagation(); state.hidden[t.code] = !state.hidden[t.code];
         setSwitch(sw, !state.hidden[t.code]); row.classList.toggle('off', !!state.hidden[t.code]); refresh();
       });
       var go = function () {
-        var b = hcpBounds(t.code); if (!b) return;
-        state.hidden[t.code] = false; setSwitch(sw, true); row.classList.remove('off'); refresh();
+        var b = s2 ? L.geoJSON(SC.territoryGeo.features.filter(function (f) { return f.properties.id === t.code; })).getBounds() : hcpBounds(t.code);
+        if (!b || !b.isValid()) return;
+        if (sw) { state.hidden[t.code] = false; setSwitch(sw, true); row.classList.remove('off'); refresh(); }
         map.flyToBounds(b, Object.assign({ duration: 1.3, easeLinearity: .2, maxZoom: 9 }, padOpts()));
-        map.once('moveend', function () { pulse(t.code); });
+        if (!s2) map.once('moveend', function () { pulse(t.code); });
       };
       row.addEventListener('click', go);
       row.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
       box.appendChild(row);
     });
-    $('legend-note').textContent = isS1()
+    $('terr-all').parentNode.style.display = s2 ? 'none' : '';
+    $('legend-note').textContent = s2 ? 'Bars show H2 planned visits; the line marks the average across territories.' : isS1()
       ? 'Bars show calls per month; the line marks the average. Colours follow the baseline territory each one evolves from.'
       : 'Bars show calls per month; the line marks the average across territories.';
   }
 
   function renderKpis() {
     var info = terrInfo();
-    var calls = info.reduce(function (s, t) { return s + t.c.calls_per_month; }, 0);
+    var calls = info.reduce(function (s, t) { return s + t.v; }, 0);
     var dev = Math.max.apply(null, info.map(function (t) { return Math.abs(t.dev); })) * 100;
-    countTo($('k-hcps'), HCPS.length, 0); countTo($('k-calls'), calls, 1);
+    $('kl-calls').textContent = isS2() ? 'H2 planned visits' : 'Calls / month';
+    if (isS2()) { $('k-hcps')._tok = {}; $('k-hcps')._v = 0; $('k-hcps').textContent = '-'; } else countTo($('k-hcps'), HCPS.length, 0);
+    countTo($('k-calls'), calls, isS2() ? 0 : 1);
     countTo($('k-terr'), info.length, 0); countTo($('k-dev'), dev, 1);
     if (isS1()) {
       var n = HCPS.filter(isMoved).length;
@@ -498,9 +520,16 @@
   // ---- scenario switch ----------------------------------------------------------------------------------------------
   function applyScenario(id, instant) {
     if (id === state.sc && !instant) return;
-    state.sc = id; state.hidden = {};
-    var seg = $('scenario'); seg.style.setProperty('--i', id === 's1' ? 1 : 0);
+    var was2 = isS2();
+    state.sc = id; SC = SCS[id] || null; state.hidden = {};
+    var seg = $('scenario'); seg.style.setProperty('--i', { base: 0, s1: 1, s2: 2 }[id]);
     Array.prototype.forEach.call(seg.querySelectorAll('button'), function (b) { b.setAttribute('aria-checked', b.getAttribute('data-v') === id); });
+    if (was2 !== isS2()) {   // the brick layer differs between scenario 2 and the others
+      if (state.area === 'grossegment_x_territory' && isS2()) state.area = 'brick';
+      else if (state.area === 'brick' && !isS2()) state.area = 'grossegment_x_territory';
+      setLevels(); renderAreaTiles();
+    }
+    $('row-main').classList.toggle('disabled', isS2());
     renderKpis(); renderTerrList(true); refresh(); recolor(!instant);
     if (state.area) showArea(state.area);
     if (id === 's1' && !instant) openModal();
@@ -508,7 +537,7 @@
   Array.prototype.forEach.call($('scenario').querySelectorAll('button'), function (b) {
     b.addEventListener('click', function () { applyScenario(b.getAttribute('data-v')); });
   });
-  if (!SC) { $('scenario').querySelector('[data-v="s1"]').disabled = true; }
+  ['s1', 's2'].forEach(function (k) { if (!SCS[k]) $('scenario').querySelector('[data-v="' + k + '"]').disabled = true; });
 
   $('terr-all').addEventListener('click', function () { state.hidden = {}; renderTerrList(false); refresh(); });
   $('terr-none').addEventListener('click', function () { terrInfo().forEach(function (t) { state.hidden[t.code] = true; }); renderTerrList(false); refresh(); });
@@ -539,16 +568,19 @@
     map.fitBounds(b, Object.assign({ animate: !!animate, duration: 1.2 }, padOpts()));
   }
 
-  // The default view is the widest the map can show and the area it can be moved in:
+  // The default view, plus EXTRA_ZOOM_OUT levels of room, is the widest the map can show and the area it can be moved in:
   // no zooming out past it, no panning away from the HCP data.
+  var EXTRA_ZOOM_OUT = 1.5;      // zoom levels the user may go out beyond the default view
   var CLUSTER_ZOOM_CLICKS = 4;   // numbered dots appear after this many presses of the + button
   function lockView() {
     var b = dataBounds(); if (!b) return;
     map.setMaxBounds(null); map.setMinZoom(0);
     fitAll(false);
-    map.setMinZoom(map.getZoom());
-    map.setMaxBounds(map.getBounds());
-    lodZoom = map.getZoom() + CLUSTER_ZOOM_CLICKS * map.options.zoomDelta;
+    var z0 = map.getZoom(), c0 = map.getCenter();
+    lodZoom = z0 + CLUSTER_ZOOM_CLICKS * map.options.zoomDelta;
+    map.setMinZoom(z0 - EXTRA_ZOOM_OUT);                       // a little room around the default view, so popups near the edge can open fully
+    map.setView(c0, z0 - EXTRA_ZOOM_OUT, { animate: false }); map.setMaxBounds(map.getBounds());
+    map.setView(c0, z0, { animate: false });
     refresh();
   }
   map.on('zoomend', function () {
@@ -559,7 +591,8 @@
   window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(lockView, 250); });
 
   // ---- init ---------------------------------------------------------------------------------------------------------------
-  renderAreaTiles(); renderKpis(); renderTerrList(true); refresh(); lockView();
+  setLevels(); renderAreaTiles(); renderKpis(); renderTerrList(true); refresh(); lockView();
   $('seg-base-sub').textContent = Object.keys(CALLS.territory).length + ' territories';
-  if (SC) $('seg-s1-sub').textContent = SC.territories.length + ' territories';
+  if (SCS.s1) $('seg-s1-sub').textContent = SCS.s1.territories.length + ' territories';
+  if (SCS.s2) $('seg-s2-sub').textContent = SCS.s2.territories.length + ' territories';
 })();

@@ -6,10 +6,11 @@
   var SALT = 'xeleratio-hcp-map|';
   var USERS = {
     dimitar: 'cfbee7699bfa8f6bee6fa557844a3f18bed40cabee97e686f10f316b6cf5e2ac',
-    karsten: '2837d0b1937bcccb3152ffffcd8a1365497ce374b5e235a62964532efa0e56d0'
+    karsten: '2837d0b1937bcccb3152ffffcd8a1365497ce374b5e235a62964532efa0e56d0',
+    max: '4d11868fc2a0d2f5a1fc424b89a5ccd270ad903b87953dd1933ea88aeae47766'
   };
   var SESSION_KEY = 'xel-hcp-map-user';
-  var SCRIPTS = ['data/hcps.js', 'data/call-potential.js', 'data/scenario-1.js', 'app.js'];
+  var SCRIPTS = ['data/hcps.js', 'data/call-potential.js', 'data/scenario-1.js', 'data/scenario-2.js', 'app.js'];
 
   function sha256(str) {
     var K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -53,7 +54,7 @@
       return p.then(function () {
         return new Promise(function (ok, fail) {
           var s = document.createElement('script');
-          s.src = src + '?v=202610230938'; s.async = false; s.onload = ok; s.onerror = function () { fail(new Error('Could not load ' + src)); };
+          s.src = src + '?v=202610261312'; s.async = false; s.onload = ok; s.onerror = function () { fail(new Error('Could not load ' + src)); };
           document.head.appendChild(s);
         });
       });

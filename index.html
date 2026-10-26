@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
-<link rel="stylesheet" href="style.css?v=202610230938">
+<link rel="stylesheet" href="style.css?v=202610261312">
 </head>
 <body class="locked">
 <div id="map" role="application" aria-label="Territory map"></div>
@@ -30,11 +30,12 @@
       <span class="seg-thumb" aria-hidden="true"></span>
       <button type="button" role="radio" aria-checked="true" data-v="base"><b>Baseline</b><small id="seg-base-sub">7 territories</small></button>
       <button type="button" role="radio" aria-checked="false" data-v="s1"><b>Scenario 1</b><small id="seg-s1-sub">6 territories</small></button>
+      <button type="button" role="radio" aria-checked="false" data-v="s2"><b>Scenario 2</b><small id="seg-s2-sub">6 territories</small></button>
     </div>
 
     <div class="kpis">
       <div class="kpi"><span class="kpi-l">HCP records</span><b id="k-hcps">0</b></div>
-      <div class="kpi"><span class="kpi-l">Calls / month</span><b id="k-calls">0</b></div>
+      <div class="kpi"><span class="kpi-l" id="kl-calls">Calls / month</span><b id="k-calls">0</b></div>
       <div class="kpi"><span class="kpi-l">Territories</span><b id="k-terr">0</b></div>
       <div class="kpi"><span class="kpi-l">Max deviation</span><b id="k-dev">0</b></div>
     </div>
@@ -89,10 +90,7 @@
   </div>
 </div>
 
-<div id="toast" class="glass" role="status" hidden></div>
-
-<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-<script src="auth.js?v=202610230938"></script>
+<script src="auth.js?v=202610261312"></script>
 </body>
 </html>

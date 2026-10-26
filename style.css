@@ -67,9 +67,9 @@ button { font: inherit; color: inherit; }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
 
 /* ---------- segmented scenario control ---------- */
-.seg { --i: 0; position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 14px; background: rgba(15, 34, 51, .07); }
+.seg { --i: 0; position: relative; display: grid; grid-template-columns: repeat(3, 1fr); padding: 4px; border-radius: 14px; background: rgba(15, 34, 51, .07); }
 .seg-thumb {
-  position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 11px; background: #fff;
+  position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / 3); border-radius: 11px; background: #fff;
   box-shadow: 0 1px 2px rgba(15, 34, 51, .12), 0 4px 12px rgba(15, 34, 51, .10);
   transform: translateX(calc(var(--i) * 100%)); transition: transform .5s var(--ease);
 }
@@ -106,6 +106,7 @@ button { font: inherit; color: inherit; }
 /* ---------- switches ---------- */
 .row-sw { display: flex; align-items: center; gap: 12px; padding: 8px 0; cursor: pointer; border-top: 1px solid var(--line); transition: opacity .3s; }
 .row-sw:first-of-type { border-top: 0; }
+.row-sw.disabled { opacity: .45; cursor: not-allowed; }
 .row-sw .lbl { flex: 1; min-width: 0; }
 .row-sw .lbl b { display: block; font-weight: 550; font-size: 13.5px; }
 .row-sw .lbl small { display: block; color: var(--muted); font-size: 11.5px; }
@@ -157,14 +158,6 @@ button { font: inherit; color: inherit; }
 .legend-note { margin: 6px 0 4px; font-size: 11.5px; color: var(--muted); }
 .attrib { font-size: 10.5px; color: var(--muted); margin: 4px 2px 0; }
 
-/* ---------- toast ---------- */
-#toast {
-  position: fixed; z-index: 1100; left: 50%; bottom: 28px; transform: translate(-50%, 0); padding: 10px 16px; border-radius: 14px; font-size: 12.5px; max-width: min(520px, calc(100% - 32px));
-  animation: toast-in .7s var(--ease) both;
-}
-#toast[hidden] { display: none; }
-@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 16px); } }
-
 /* ---------- leaflet skin ---------- */
 .leaflet-container { font-family: inherit; background: #e9eef3; }
 .leaflet-top.leaflet-right { top: 8px; right: 8px; }
@@ -196,6 +189,7 @@ button { font: inherit; color: inherit; }
 .pp-hero b { font-size: 30px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .pp-hero span { color: var(--muted); font-size: 12px; margin-left: 6px; }
 .pp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.pp-grid.two { grid-template-columns: 1fr 1fr; }
 .pp-grid div { padding: 6px 4px; border-radius: 10px; background: rgba(15, 34, 51, .05); text-align: center; line-height: 1.2; }
 .pp-grid b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
 .pp-grid small { font-size: 10.5px; color: var(--muted); }
@@ -228,7 +222,7 @@ button { font: inherit; color: inherit; }
 @keyframes cl-in { from { transform: scale(.4); opacity: 0; } }
 
 /* ---------- sign-in ---------- */
-body.locked #dock, body.locked #map, body.locked #toast { display: none; }
+body.locked #dock, body.locked #map { display: none; }
 .login {
   position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; padding: 16px;
   background: radial-gradient(1200px 700px at 15% 10%, rgba(11, 107, 203, .22), transparent 60%), radial-gradient(900px 600px at 90% 90%, rgba(15, 163, 160, .22), transparent 60%), #eaf0f6;
